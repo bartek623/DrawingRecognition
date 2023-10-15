@@ -1,4 +1,17 @@
+import { Box, styled } from "@mui/material";
 import React, { useEffect, useRef, useState } from "react";
+
+const ACTUAL_CANVAS_SIZE = 500;
+
+const StyledBox = styled(Box)`
+  margin: 50px auto;
+  width: ${ACTUAL_CANVAS_SIZE}px;
+`;
+
+const CanvasStyle = {
+  width: ACTUAL_CANVAS_SIZE + "px",
+  backgroundColor: "#fff",
+};
 
 export type CtxType = CanvasRenderingContext2D | undefined;
 
@@ -15,7 +28,7 @@ export function Canvas({ width, height, onChange }: CanvasProps) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d", { colorSpace: "display-p3" });
+    const ctx = canvas?.getContext("2d", { willReadFrequently: true });
 
     if (!ctx) return;
 
@@ -33,9 +46,15 @@ export function Canvas({ width, height, onChange }: CanvasProps) {
   };
 
   const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!ctx || !isDrawing) return;
+    const canvas = canvasRef.current;
 
-    ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+    if (!ctx || !isDrawing || !canvas) return;
+    console.log(e);
+
+    const x = ((e.clientX - canvas.offsetLeft) * width) / ACTUAL_CANVAS_SIZE;
+    const y = ((e.clientY - canvas.offsetTop) * height) / ACTUAL_CANVAS_SIZE;
+
+    ctx.lineTo(x, y);
     ctx.stroke();
   };
 
@@ -46,16 +65,18 @@ export function Canvas({ width, height, onChange }: CanvasProps) {
   };
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ transform: "scale(10)", backgroundColor: "white" }}
-      width={width}
-      height={height}
-      onMouseDown={startDrawing}
-      onMouseMove={draw}
-      onMouseUp={stopDrawing}
-      onMouseLeave={stopDrawing}
-      onChange={() => onChange(ctx)}
-    />
+    <StyledBox>
+      <canvas
+        ref={canvasRef}
+        style={CanvasStyle}
+        width={width}
+        height={height}
+        onMouseDown={startDrawing}
+        onMouseMove={draw}
+        onMouseUp={stopDrawing}
+        onMouseLeave={stopDrawing}
+        onChange={() => onChange(ctx)}
+      />
+    </StyledBox>
   );
 }
