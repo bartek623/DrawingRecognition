@@ -1,27 +1,27 @@
 import React, { useEffect, useRef, useState } from "react";
 
+export type CtxType = CanvasRenderingContext2D | undefined;
+
 type CanvasProps = {
   width: number;
   height: number;
+  onChange: (ctx: CtxType) => void;
 };
 
-type ContextType = CanvasRenderingContext2D | undefined;
-
-export function Canvas({ width, height }: CanvasProps) {
+export function Canvas({ width, height, onChange }: CanvasProps) {
   const [isDrawing, setIsDrawing] = useState(false);
-  const [ctx, setCtx] = useState<ContextType>(undefined);
+  const [ctx, setCtx] = useState<CtxType>(undefined);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
+    const ctx = canvas?.getContext("2d", { colorSpace: "display-p3" });
 
     if (!ctx) return;
 
     setCtx(ctx);
-    ctx.strokeStyle = "#6b5b95";
-    ctx.shadowBlur = 15;
-    ctx.lineWidth = 8;
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 0.2;
     ctx.lineJoin = "round";
   }, []);
 
@@ -40,18 +40,22 @@ export function Canvas({ width, height }: CanvasProps) {
   };
 
   const stopDrawing = () => {
+    if (!isDrawing) return;
     setIsDrawing(false);
+    onChange(ctx);
   };
 
   return (
     <canvas
       ref={canvasRef}
+      style={{ transform: "scale(10)", backgroundColor: "white" }}
       width={width}
       height={height}
       onMouseDown={startDrawing}
       onMouseMove={draw}
       onMouseUp={stopDrawing}
       onMouseLeave={stopDrawing}
+      onChange={() => onChange(ctx)}
     />
   );
 }
