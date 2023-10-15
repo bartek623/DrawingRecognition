@@ -1,27 +1,27 @@
-import { Box, styled } from "@mui/material";
+import { Box, Button, styled } from "@mui/material";
 import React, { useEffect, useRef, useState } from "react";
+import { CANVAS_SIZE } from "../ModelTF/constants";
 
 const ACTUAL_CANVAS_SIZE = 500;
 
 const StyledBox = styled(Box)`
-  margin: 50px auto;
+  margin: 50px auto 10px;
   width: ${ACTUAL_CANVAS_SIZE}px;
 `;
 
 const CanvasStyle = {
   width: ACTUAL_CANVAS_SIZE + "px",
-  backgroundColor: "#fff",
+  backgroundColor: "#000",
+  cursor: "crosshair",
 };
 
 export type CtxType = CanvasRenderingContext2D | undefined;
 
 type CanvasProps = {
-  width: number;
-  height: number;
-  onChange: (ctx: CtxType) => void;
+  onChange: (canvas: HTMLCanvasElement | null) => void;
 };
 
-export function Canvas({ width, height, onChange }: CanvasProps) {
+export function Canvas({ onChange }: CanvasProps) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [ctx, setCtx] = useState<CtxType>(undefined);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -33,7 +33,7 @@ export function Canvas({ width, height, onChange }: CanvasProps) {
     if (!ctx) return;
 
     setCtx(ctx);
-    ctx.strokeStyle = "#000";
+    ctx.strokeStyle = "#fff";
     ctx.lineWidth = 0.2;
     ctx.lineJoin = "round";
   }, []);
@@ -49,10 +49,11 @@ export function Canvas({ width, height, onChange }: CanvasProps) {
     const canvas = canvasRef.current;
 
     if (!ctx || !isDrawing || !canvas) return;
-    console.log(e);
 
-    const x = ((e.clientX - canvas.offsetLeft) * width) / ACTUAL_CANVAS_SIZE;
-    const y = ((e.clientY - canvas.offsetTop) * height) / ACTUAL_CANVAS_SIZE;
+    const x =
+      ((e.clientX - canvas.offsetLeft) * CANVAS_SIZE) / ACTUAL_CANVAS_SIZE;
+    const y =
+      ((e.clientY - canvas.offsetTop) * CANVAS_SIZE) / ACTUAL_CANVAS_SIZE;
 
     ctx.lineTo(x, y);
     ctx.stroke();
@@ -61,7 +62,11 @@ export function Canvas({ width, height, onChange }: CanvasProps) {
   const stopDrawing = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
-    onChange(ctx);
+    onChange(canvasRef.current);
+  };
+
+  const clearHandler = () => {
+    ctx?.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
   };
 
   return (
@@ -69,14 +74,16 @@ export function Canvas({ width, height, onChange }: CanvasProps) {
       <canvas
         ref={canvasRef}
         style={CanvasStyle}
-        width={width}
-        height={height}
+        width={CANVAS_SIZE}
+        height={CANVAS_SIZE}
         onMouseDown={startDrawing}
         onMouseMove={draw}
         onMouseUp={stopDrawing}
         onMouseLeave={stopDrawing}
-        onChange={() => onChange(ctx)}
       />
+      <Button variant="contained" onClick={clearHandler}>
+        CLEAR
+      </Button>
     </StyledBox>
   );
 }
