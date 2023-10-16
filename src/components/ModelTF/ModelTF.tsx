@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Box, Button, Typography, styled } from "@mui/material";
+import { Box, Button, Input, Typography, styled } from "@mui/material";
 import * as tf from "@tensorflow/tfjs";
 
 import { Canvas, CanvasTest } from "../Canvas";
-import { createModel } from "./utils";
+import { createModel, onDownload } from "./utils";
 import { COMPILER_CONFIG, PREDICTIONS } from "./constants";
 
 const StyledBox = styled(Box)`
@@ -13,6 +13,20 @@ const StyledBox = styled(Box)`
   gap: ${({ theme }) => theme.spacing(1)};
 `;
 
+type tensorDataArray =
+  | number
+  | number[]
+  | number[][]
+  | number[][][]
+  | number[][][][]
+  | number[][][][][]
+  | number[][][][][][];
+
+export type TrainDataType = {
+  xs: tensorDataArray;
+  ys: tensorDataArray;
+}[];
+
 export function ModelTF() {
   const [isLoading, setIsLoading] = useState(false);
   const [model, setModel] = useState<
@@ -20,6 +34,7 @@ export function ModelTF() {
   >(undefined);
   const [tensor, setTensor] = useState<tf.Tensor | undefined>(undefined);
   const [prediction, setPrediction] = useState("");
+  const [trainData, setTrainData] = useState<TrainDataType>([]);
 
   const loadModel = async () => {
     setIsLoading(true);
@@ -53,24 +68,24 @@ export function ModelTF() {
   const modelLearnHandler = async (label: number) => {
     if (!tensor) return;
 
+    setIsLoading(true);
+
     const xs = tensor;
     const ys = tf.tensor([[label / 9]]);
 
-    model.compile(COMPILER_CONFIG);
+    setTrainData((prev) => [
+      ...prev,
+      { xs: xs.arraySync(), ys: ys.arraySync() },
+    ]);
 
-    setIsLoading(true);
-
-    await model.fit(xs, ys, { epochs: 100 });
-    await model.save("localstorage://number-predict-model");
-    modelPredictHandler();
-
-    setIsLoading(false);
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 10);
   };
 
   const modelLearnOnClickHandler = async (e: React.MouseEvent) => {
     const btn = e.target as HTMLButtonElement;
     const label = btn.textContent;
-    console.log(label);
 
     if (!label) return;
 
@@ -83,7 +98,6 @@ export function ModelTF() {
     const prediction = model.predict(tensor) as tf.Tensor;
     console.log(prediction.dataSync());
     setPrediction((prediction.dataSync()[0] * 9).toFixed(2));
-    // setPrediction(`${Math.round(prediction.dataSync()[0] * 9)}`);
   };
 
   const keyDownHandler = (e: React.KeyboardEvent) => {
@@ -92,9 +106,60 @@ export function ModelTF() {
     modelLearnHandler(key);
   };
 
+  const modelTrainHandler = (data = trainData) => {
+    data.forEach(async (data) => {
+      setIsLoading(true);
+
+      const xs = tf.tensor(data.xs);
+      const ys = tf.tensor(data.ys);
+
+      model.compile(COMPILER_CONFIG);
+      await model.fit(xs, ys, { epochs: 25 });
+      await model.save("localstorage://number-predict-model");
+
+      setIsLoading(false);
+    });
+  };
+
+  const uploadAndTrainHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target as HTMLInputElement;
+    const reader = new FileReader();
+
+    if (!input.files) return;
+
+    reader.readAsText(input.files[0], "UTF-8");
+    reader.onload = (e: ProgressEvent<FileReader>) => {
+      const result = e.target?.result?.toString();
+      const data = result && JSON.parse(result).data;
+
+      if (!data) return;
+
+      setTrainData(data);
+    };
+  };
+
   return (
     <>
-      <CanvasTest tensor={tensor} />
+      <Box
+        sx={{
+          display: "flex",
+          gap: 1,
+          alignItems: "center",
+          userSelect: "none",
+        }}
+      >
+        <CanvasTest tensor={tensor} />
+        <Typography>Train items: {trainData.length}</Typography>
+        {PREDICTIONS.map((num) => (
+          <Typography key={num}>
+            {`${num}: [${
+              trainData.filter(
+                (el) => el.ys[0][0].toFixed(2) === (num / 9).toFixed(2)
+              ).length
+            }]`}
+          </Typography>
+        ))}
+      </Box>
       <Canvas onChange={canvasChangeHandler} onKeyDown={keyDownHandler} />
       <StyledBox>
         {PREDICTIONS.map((el) => (
@@ -109,6 +174,13 @@ export function ModelTF() {
         <Button onClick={modelPredictHandler} variant="contained">
           PREDICT
         </Button>
+        <Button onClick={() => modelTrainHandler()} variant="contained">
+          TRAIN
+        </Button>
+        <Button onClick={() => onDownload(trainData)} variant="contained">
+          DOWNLOAD TRAIN DATA
+        </Button>
+        <Input type="file" onChange={uploadAndTrainHandler} />
       </StyledBox>
       {prediction && (
         <Typography align="center" margin={1}>
