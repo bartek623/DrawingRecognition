@@ -1,8 +1,6 @@
 import { Box, Button, styled } from "@mui/material";
 import React, { useEffect, useRef, useState } from "react";
-import { CANVAS_SIZE } from "../ModelTF/constants";
-
-const ACTUAL_CANVAS_SIZE = 500;
+import { ACTUAL_CANVAS_SIZE, CANVAS_SIZE } from "../ModelTF/constants";
 
 const StyledBox = styled(Box)`
   margin: 50px auto 10px;
@@ -19,9 +17,10 @@ export type CtxType = CanvasRenderingContext2D | undefined;
 
 type CanvasProps = {
   onChange: (canvas: HTMLCanvasElement | null) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
 };
 
-export function Canvas({ onChange }: CanvasProps) {
+export function Canvas({ onChange, onKeyDown }: CanvasProps) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [ctx, setCtx] = useState<CtxType>(undefined);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -32,11 +31,18 @@ export function Canvas({ onChange }: CanvasProps) {
 
     if (!ctx) return;
 
-    setCtx(ctx);
     ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 0.2;
-    ctx.lineJoin = "round";
+    ctx.lineWidth = 1;
+    setCtx(ctx);
+
+    return () => {
+      ctx?.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+    };
   }, []);
+
+  const clearHandler = () => {
+    ctx?.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+  };
 
   const startDrawing = () => {
     if (!ctx) return;
@@ -65,10 +71,6 @@ export function Canvas({ onChange }: CanvasProps) {
     onChange(canvasRef.current);
   };
 
-  const clearHandler = () => {
-    ctx?.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-  };
-
   return (
     <StyledBox>
       <canvas
@@ -80,6 +82,8 @@ export function Canvas({ onChange }: CanvasProps) {
         onMouseMove={draw}
         onMouseUp={stopDrawing}
         onMouseLeave={stopDrawing}
+        tabIndex={1}
+        onKeyDown={onKeyDown}
       />
       <Button variant="contained" onClick={clearHandler}>
         CLEAR

@@ -2,13 +2,14 @@ import React, { useEffect, useState } from "react";
 import { Box, Button, Typography, styled } from "@mui/material";
 import * as tf from "@tensorflow/tfjs";
 
-import { Canvas } from "../Canvas";
+import { Canvas, CanvasTest } from "../Canvas";
 import { createModel } from "./utils";
-import { PREDICTIONS } from "./constants";
+import { COMPILER_CONFIG, PREDICTIONS } from "./constants";
 
 const StyledBox = styled(Box)`
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   gap: ${({ theme }) => theme.spacing(1)};
 `;
 
@@ -45,33 +46,35 @@ export function ModelTF() {
   const canvasChangeHandler = (canvas: HTMLCanvasElement | null) => {
     if (!canvas) return;
 
-    const tensor = tf.browser.fromPixels(canvas).as2D(1, -1).div(255);
+    const tensor = tf.browser.fromPixels(canvas, 1).as2D(1, -1).div(255);
     setTensor(tensor);
   };
 
-  const modelLearnHandler = async (e: React.MouseEvent) => {
+  const modelLearnHandler = async (label: number) => {
+    if (!tensor) return;
+
+    const xs = tensor;
+    const ys = tf.tensor([[label / 9]]);
+
+    model.compile(COMPILER_CONFIG);
+
+    setIsLoading(true);
+
+    await model.fit(xs, ys, { epochs: 100 });
+    await model.save("localstorage://number-predict-model");
+    modelPredictHandler();
+
+    setIsLoading(false);
+  };
+
+  const modelLearnOnClickHandler = async (e: React.MouseEvent) => {
     const btn = e.target as HTMLButtonElement;
     const label = btn.textContent;
     console.log(label);
 
-    if (!tensor || !label) return;
+    if (!label) return;
 
-    const xs = tensor;
-    const ys = tf.tensor([[+label]]);
-
-    model.compile({
-      loss: "meanSquaredError",
-      optimizer: "adam",
-    });
-
-    setIsLoading(true);
-    model.fit(xs, ys, { epochs: 5 }).then((info) => {
-      setIsLoading(false);
-      console.log("info", info);
-    });
-    await model.save("localstorage://number-predict-model");
-
-    modelPredictHandler();
+    modelLearnHandler(+label);
   };
 
   const modelPredictHandler = () => {
@@ -79,15 +82,27 @@ export function ModelTF() {
 
     const prediction = model.predict(tensor) as tf.Tensor;
     console.log(prediction.dataSync());
-    setPrediction(`${Math.round(prediction.dataSync()[0])}`);
+    setPrediction((prediction.dataSync()[0] * 9).toFixed(2));
+    // setPrediction(`${Math.round(prediction.dataSync()[0] * 9)}`);
+  };
+
+  const keyDownHandler = (e: React.KeyboardEvent) => {
+    const key = +e.key;
+    if (!PREDICTIONS.includes(key)) return;
+    modelLearnHandler(key);
   };
 
   return (
     <>
-      <Canvas onChange={canvasChangeHandler} />
+      <CanvasTest tensor={tensor} />
+      <Canvas onChange={canvasChangeHandler} onKeyDown={keyDownHandler} />
       <StyledBox>
         {PREDICTIONS.map((el) => (
-          <Button onClick={modelLearnHandler} variant="contained" key={el}>
+          <Button
+            onClick={modelLearnOnClickHandler}
+            variant="contained"
+            key={el}
+          >
             {el}
           </Button>
         ))}
