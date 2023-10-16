@@ -9,7 +9,7 @@ export const createModel = () => {
   );
   model.add(tf.layers.dense({ units: 1 }));
 
-  model.compile({ loss: "meanSquaredError", optimizer: "sgd" });
+  model.compile({ loss: "meanSquaredError", optimizer: "adam" });
 
   return model;
 };

@@ -46,24 +46,27 @@ export function ModelTF() {
     if (!canvas) return;
 
     const tensor = tf.browser.fromPixels(canvas).as2D(1, -1).div(255);
-    tensor.print();
-    console.log(tensor.shape);
     setTensor(tensor);
-    modelPredictHandler();
   };
 
   const modelLearnHandler = async (e: React.MouseEvent) => {
     const btn = e.target as HTMLButtonElement;
     const label = btn.textContent;
+    console.log(label);
 
     if (!tensor || !label) return;
 
     const xs = tensor;
     const ys = tf.tensor([[+label]]);
 
-    model.compile({ loss: "meanSquaredError", optimizer: "sgd" });
+    model.compile({
+      loss: "meanSquaredError",
+      optimizer: "adam",
+    });
 
-    model.fit(xs, ys, { epochs: 50, batchSize: 32 }).then((info) => {
+    setIsLoading(true);
+    model.fit(xs, ys, { epochs: 5 }).then((info) => {
+      setIsLoading(false);
       console.log("info", info);
     });
     await model.save("localstorage://number-predict-model");
@@ -75,7 +78,7 @@ export function ModelTF() {
     if (!tensor) return;
 
     const prediction = model.predict(tensor) as tf.Tensor;
-    console.log("Prediction: ", prediction);
+    console.log(prediction.dataSync());
     setPrediction(`${Math.round(prediction.dataSync()[0])}`);
   };
 
